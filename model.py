@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 import os
 from PIL import Image
@@ -45,6 +47,15 @@ class CustomDataset(Dataset):
             image = self.transform(image)
 
         return image, label
+
+
+# Create function for model folder
+def create_model_dir(base_dir='data/model_evaluation'):
+    timestamp = time.strftime('%Y%m%d-%H%M%S')
+    model_dir = os.path.join(base_dir, f'model_{timestamp}')
+    weights_dir = os.path.join(model_dir, 'weights')
+    os.makedirs(weights_dir, exist_ok=True)
+    return model_dir, weights_dir
 
 
 if __name__ == "__main__":
@@ -114,23 +125,33 @@ if __name__ == "__main__":
     writer = SummaryWriter('data/resource/tensorboard')
     # To run tensorboard: tensorboard --logdir=data/resource
 
+    # Create the directories to save model weights & metrics
+    model_dir, weights_dir = create_model_dir()
+
     # Training function
     def train(model, epochs=1):
         for epoch in range(epochs):
             model.train()
             running_loss = 0.0
 
-            for images, labels in train_dataloader:
+            for i, (images, labels) in enumerate(train_dataloader):
                 optimizer.zero_grad()
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
 
-                print(f'Loss: {loss.item()}')
                 running_loss += loss.item()
 
-            avg_train_loss = running_loss / len(train_dataloader)
+                # Logs every 10 batches
+                if i % 10:
+                    # logs the average training loss for the last 10 batches
+                    writer.add_scalar(
+                        'training loss',
+                        running_loss / 10,
+                        epoch * len(train_dataloader) + i
+                    )
+                    running_loss = 0.0
 
             # validation loop
             model.eval()
@@ -142,13 +163,28 @@ if __name__ == "__main__":
                     val_loss += loss.item()
 
             avg_val_loss = val_loss / len(validation_dataloader)
+            writer.add_scalar(
+                'validation loss',
+                avg_val_loss,
+                epoch
+            )
 
-            print(f'Epoch [{epoch + 1}/{epochs}], Training Loss: {avg_train_loss:.4f} Validation Loss: {avg_val_loss:.4f}')
+            print(f'Epoch [{epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}')
 
-        print('Finished Training')
+            # Save the model weights at the end of the epoch
+            weights_path = os.path.join(weights_dir, f'epoch_{epoch + 1}.pth')
+            torch.save(model.state_dict(), weights_path)
+
+            # Save metrics e.g. loss at the end of each epoch
+            metrics_path = os.path.join(model_dir, 'metrics.txt')
+            with open(metrics_path, 'a') as f:
+                f.write(f'Epoch {epoch + 1}, Training loss: {running_loss:.4f}, Validation loss: {avg_val_loss:.4f}\n')
+
+        writer.flush()
 
     # Call the training function
     train(model, 10)
+    writer.close()
 
     # Example usage
     # for images, labels in dataloader:
