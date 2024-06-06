@@ -63,8 +63,8 @@ if __name__ == "__main__":
     dataframe = pd.read_csv('data/csv/training_data.csv', dtype={'image_id': str, 'category_label': int}, index_col=0)
 
     # Create the encoder and decoder dictionaries
-    labels = dataframe['category_label'].unique()
-    label_encoder = {label: idx for idx, label in enumerate(labels)}
+    unique_labels = dataframe['category_label'].unique()
+    label_encoder = {label: idx for idx, label in enumerate(unique_labels)}
     label_decoder = {idx: label for label, idx in label_encoder.items()}
 
     # Save the decoder dictionary
@@ -108,8 +108,8 @@ if __name__ == "__main__":
 
     # Create dataloader instance
     train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=True)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
     # Load pre-trained ResNet-50 model
     weights = ResNet50_Weights.IMAGENET1K_V1
@@ -117,9 +117,19 @@ if __name__ == "__main__":
     num_features = model.fc.in_features
     model.fc = nn.Linear(num_features, len(label_encoder))
 
+    # Freeze all the layers first
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # Unfreeze the last two layers + fully connected layer
+    for param in model.layer4.parameters():
+        param.requires_grad = True
+    for param in model.fc.parameters():
+        param.requires_grad = True
+
     # Define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.001)
 
     # Initialize Tensorboard writer
     writer = SummaryWriter('data/resource/tensorboard')
@@ -133,6 +143,7 @@ if __name__ == "__main__":
         for epoch in range(epochs):
             model.train()
             running_loss = 0.0
+            total_loss = 0.0
 
             for i, (images, labels) in enumerate(train_dataloader):
                 optimizer.zero_grad()
@@ -142,9 +153,10 @@ if __name__ == "__main__":
                 optimizer.step()
 
                 running_loss += loss.item()
+                total_loss += loss.item()
 
                 # Logs every 10 batches
-                if i % 10:
+                if i % 10 == 9:
                     # logs the average training loss for the last 10 batches
                     writer.add_scalar(
                         'training loss',
@@ -152,6 +164,13 @@ if __name__ == "__main__":
                         epoch * len(train_dataloader) + i
                     )
                     running_loss = 0.0
+
+            avg_train_loss = total_loss / len(train_dataloader)
+            writer.add_scalar(
+                'avg training loss',
+                avg_train_loss,
+                epoch
+            )
 
             # validation loop
             model.eval()
@@ -169,7 +188,8 @@ if __name__ == "__main__":
                 epoch
             )
 
-            print(f'Epoch [{epoch + 1}/{epochs}], Validation Loss: {avg_val_loss:.4f}')
+            print(f'Epoch [{epoch + 1}/{epochs}], Avg Train Loss: {avg_train_loss:.4f},'
+                  f' Validation Loss: {avg_val_loss:.4f}')
 
             # Save the model weights at the end of the epoch
             weights_path = os.path.join(weights_dir, f'epoch_{epoch + 1}.pth')
@@ -178,7 +198,8 @@ if __name__ == "__main__":
             # Save metrics e.g. loss at the end of each epoch
             metrics_path = os.path.join(model_dir, 'metrics.txt')
             with open(metrics_path, 'a') as f:
-                f.write(f'Epoch {epoch + 1}, Training loss: {running_loss:.4f}, Validation loss: {avg_val_loss:.4f}\n')
+                f.write(f'Epoch {epoch + 1}, Avg Train loss: {avg_train_loss:.4f}, '
+                        f'Validation loss: {avg_val_loss:.4f}\n')
 
         writer.flush()
 
