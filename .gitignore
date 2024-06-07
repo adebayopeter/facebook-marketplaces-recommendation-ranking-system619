@@ -3,5 +3,5 @@
 .idea/
 
 # Do not exempt the following files or directories:
-!/data/src/
-!/data/src/tensorboard.png
+# !/src/
+# !/src/tensorboard.png

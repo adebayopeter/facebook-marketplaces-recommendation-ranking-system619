@@ -92,7 +92,7 @@ The project directory is structured as follows:
 ## TensorBoard Visualizations
 
 ### Training and Validation Loss
-![Training and Validation Loss](data/src/tensorboard.png)
+![Training and Validation Loss](src/tensorboard.png)
 
 ## License
 This project is licensed under [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
