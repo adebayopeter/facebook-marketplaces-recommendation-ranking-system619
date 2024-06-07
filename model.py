@@ -1,7 +1,8 @@
-import time
-import pandas as pd
 import os
+import pandas as pd
+import time
 from PIL import Image
+import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -45,7 +46,8 @@ class CustomDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return image, label
+        # return image, label, image ID
+        return image, label, self.dataframe.iloc[idx, 0]
 
 
 # Create function for model folder
@@ -68,7 +70,7 @@ if __name__ == "__main__":
 
     # Save the decoder dictionary
     with open('data/resource/image_decoder.pkl', 'wb') as f:
-        pickle.dumps(label_decoder)
+        pickle.dump(label_decoder, f)
 
     # Split dataset into training, validation and test sets
     df_training, df_temp = train_test_split(
@@ -221,7 +223,26 @@ if __name__ == "__main__":
         torch.load(trained_model_path)
     )
 
+    # Convert model to feature extraction model
+    feature_extractor_model.fc = nn.Identity()
+
     # Save the final feature extraction model weights
     final_model_path = os.path.join(final_model_dir, 'image_model.pt')
     torch.save(feature_extractor_model.state_dict(), final_model_path)
     print(f'Feature extraction model saved at {final_model_path}')
+
+    # Dictionary to store image embeddings
+    image_embeddings = {}
+
+    # Extract embeddings for each image
+    with torch.no_grad():
+        for images, _, image_ids in DataLoader(train_dataset, batch_size=32, shuffle=False):
+            embeddings = feature_extractor_model(images)
+            for img_id, embedding in zip(image_ids, embeddings):
+                image_embeddings[img_id] = embedding.tolist()
+
+    # Save the embeddings dictionary as a JSON file
+    with open('data/output/image_embeddings.json', 'w') as f:
+        json.dump(image_embeddings, f)
+
+    print('Image embeddings have been successfully saved to image_embeddings.json')
