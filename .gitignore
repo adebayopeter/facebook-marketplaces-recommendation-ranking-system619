@@ -1,3 +1,7 @@
 /venv/
 /data/
 .idea/
+
+# Do not exempt the following files or directories:
+!data/src/
+!data/src/tensorboard.png
