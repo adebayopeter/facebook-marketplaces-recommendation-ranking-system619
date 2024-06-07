@@ -1,5 +1,4 @@
 import time
-
 import pandas as pd
 import os
 from PIL import Image
@@ -207,6 +206,22 @@ if __name__ == "__main__":
     train(model, 10)
     writer.close()
 
-    # Example usage
-    # for images, labels in dataloader:
-    #    print(images.size(), labels)
+    # Create the final model directory
+    final_model_dir = 'data/final_model'
+    os.makedirs(final_model_dir, exist_ok=True)
+
+    # Modify the model for feature extraction
+    feature_extractor_model = models.resnet50(weights=weights)
+    num_features = feature_extractor_model.fc.in_features
+    feature_extractor_model.fc = nn.Linear(num_features, 1000)
+
+    # Load the trained weights into the feature extractor model
+    trained_model_path = os.path.join(weights_dir, 'epoch_10.pth')
+    feature_extractor_model.load_state_dict(
+        torch.load(trained_model_path)
+    )
+
+    # Save the final feature extraction model weights
+    final_model_path = os.path.join(final_model_dir, 'image_model.pt')
+    torch.save(feature_extractor_model.state_dict(), final_model_path)
+    print(f'Feature extraction model saved at {final_model_path}')
