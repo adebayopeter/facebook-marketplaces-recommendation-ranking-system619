@@ -146,7 +146,7 @@ if __name__ == "__main__":
             running_loss = 0.0
             total_loss = 0.0
 
-            for i, (images, labels) in enumerate(train_dataloader):
+            for i, (images, labels, image_ids) in enumerate(train_dataloader):
                 optimizer.zero_grad()
                 outputs = model(images)
                 loss = criterion(outputs, labels)
@@ -177,7 +177,7 @@ if __name__ == "__main__":
             model.eval()
             val_loss = 0.0
             with torch.no_grad():
-                for images, labels in validation_dataloader:
+                for images, labels, image_ids in validation_dataloader:
                     outputs = model(images)
                     loss = criterion(outputs, labels)
                     val_loss += loss.item()
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         writer.flush()
 
     # Call the training function
-    train(model, 10)
+    train(model, 1)
     writer.close()
 
     # Create the final model directory
