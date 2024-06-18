@@ -215,10 +215,11 @@ if __name__ == "__main__":
     # Modify the model for feature extraction
     feature_extractor_model = models.resnet50(weights=weights)
     num_features = feature_extractor_model.fc.in_features
-    feature_extractor_model.fc = nn.Linear(num_features, 1000)
+    # Number of output units to 13, as used during training
+    feature_extractor_model.fc = nn.Linear(num_features, 13)
 
     # Load the trained weights into the feature extractor model
-    trained_model_path = os.path.join(weights_dir, 'epoch_10.pth')
+    trained_model_path = os.path.join(weights_dir, 'epoch_1.pth')
     feature_extractor_model.load_state_dict(
         torch.load(trained_model_path)
     )

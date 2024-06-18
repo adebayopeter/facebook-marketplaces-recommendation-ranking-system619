@@ -31,5 +31,5 @@ def process_image(image_path):
 
 
 if __name__ == "__main__":
-    processed_image = process_image(image_path='')
+    processed_image = process_image(image_path='data/test_img/tv1.jpeg')
     print(f'Processed image shape: {processed_image.shape}')
